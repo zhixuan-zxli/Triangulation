@@ -12,6 +12,7 @@ public:
   using iVec = Vec<int,Dim>;
   using BaseClass = Box<Dim>;
 
+  // todo : Add the node-centered grid.
   enum StaggerType { CellCentered = -1 };
 
   RectDomain() = default;

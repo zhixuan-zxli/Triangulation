@@ -12,6 +12,8 @@ public:
   using iVec = Vec<int, Dim>;
   using rVec = Vec<Real, Dim>;
 
+  enum { GL_Knots = 3 };
+
   // Always initialize a FuncFiller with a p-grid.
   FuncFiller(const RectDomain<Dim> &_rd) : rd(_rd) { }
 
@@ -66,7 +68,7 @@ void FuncFiller<2>::fillAvr(Tensor<Real, 2> &aData, int d, const TFunc &expr, bo
 #pragma omp parallel for default(shared) schedule(static)
     loop_box_2(bx, i, j) {
       iVec idx {i, j};
-      aData(i, j) = quad<4>(expr, idx*dx, (idx+1)*dx) / cellVol;
+      aData(i, j) = quad<GL_Knots>(expr, idx*dx, (idx+1)*dx) / cellVol;
     }
   } else { // face-average version
     Real faceVol = prod(reduce(dx, d));
@@ -74,7 +76,7 @@ void FuncFiller<2>::fillAvr(Tensor<Real, 2> &aData, int d, const TFunc &expr, bo
     loop_box_2(bx, i, j) {
       iVec idx {i, j};
       rVec corners[2] {idx*dx, (idx+1)*dx};
-      aData(i, j) = quad<4>([&](const Vec<Real, 1> &x) { return expr(enlarge(x, corners[0][d], d)); },
+      aData(i, j) = quad<GL_Knots>([&](const Vec<Real, 1> &x) { return expr(enlarge(x, corners[0][d], d)); },
                             reduce(corners[0], d), reduce(corners[1], d)) / faceVol;
     }
   }
@@ -103,7 +105,7 @@ void FuncFiller<2>::fillBdryAvr(Tensor<Real, 1> &aData,
 #pragma omp parallel for default(shared) schedule(static)
     loop_box_1(bx, i) {
       Vec<Real, 1> corners[2] { dxd*i, dxd*(i+1) };
-      aData(i) = quad<4>([&](const Vec<Real, 1> &x) { return expr(enlarge(x, hat, D)); }, corners[0], corners[1]) / faceVol;
+      aData(i) = quad<GL_Knots>([&](const Vec<Real, 1> &x) { return expr(enlarge(x, hat, D)); }, corners[0], corners[1]) / faceVol;
     }
   } else {
 #pragma omp parallel for default(shared) schedule(static)
@@ -130,7 +132,7 @@ void FuncFiller<3>::fillAvr(Tensor<Real, 3> &aData, int d, const TFunc &expr, bo
 #pragma omp parallel for default(shared) schedule(static)
     loop_box_3(bx, i, j, k) {
       iVec idx {i, j, k};
-      aData(i, j, k) = quad<4>(expr, idx*dx, (idx+1)*dx) / cellVol;
+      aData(i, j, k) = quad<GL_Knots>(expr, idx*dx, (idx+1)*dx) / cellVol;
     }
   } else { // face-average version
     Real faceVol = prod(reduce(dx, d));
@@ -138,7 +140,7 @@ void FuncFiller<3>::fillAvr(Tensor<Real, 3> &aData, int d, const TFunc &expr, bo
     loop_box_3(bx, i, j, k) {
       iVec idx {i, j, k};
       rVec corners[2] {idx*dx, (idx+1)*dx};
-      aData(i, j, k) = quad<4>([&](const Vec<Real, 2> &x) { return expr(enlarge(x, corners[0][d], d)); },
+      aData(i, j, k) = quad<GL_Knots>([&](const Vec<Real, 2> &x) { return expr(enlarge(x, corners[0][d], d)); },
                                reduce(corners[0], d), reduce(corners[1], d)) / faceVol;
     }
   }
@@ -168,7 +170,7 @@ void FuncFiller<3>::fillBdryAvr(Tensor<Real, 2> &aData,
     loop_box_2(bx, i, j) {
       Vec<int, 2> idx {i, j};
       Vec<Real, 2> corners[2] { idx*dxd, (idx+1)*dxd };
-      aData(i, j) = quad<4>([&](const Vec<Real, 2> &x) { return expr(enlarge(x, hat, D)); }, corners[0], corners[1]) / faceVol;
+      aData(i, j) = quad<GL_Knots>([&](const Vec<Real, 2> &x) { return expr(enlarge(x, hat, D)); }, corners[0], corners[1]) / faceVol;
     }
   } else { // a two-dimension reduction
     if(staggered > D)
@@ -178,7 +180,7 @@ void FuncFiller<3>::fillBdryAvr(Tensor<Real, 2> &aData,
     loop_box_2(bx, i, j) {
       Vec<int, 2> idx {i, j};
       Vec<Real, 2> corners[2] {idx * dxd, (idx+1) * dxd};
-      aData(i, j) = quad<4>([&](const Vec<Real, 1> &x) {
+      aData(i, j) = quad<GL_Knots>([&](const Vec<Real, 1> &x) {
         return expr(enlarge(enlarge(x, corners[0][staggered], staggered), hat, D));
       }, reduce(corners[0], staggered), reduce(corners[1], staggered)) / edgeVol;
     }

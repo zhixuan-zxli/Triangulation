@@ -15,9 +15,8 @@ add_library(${LIB_NAME}
         Core/TensorExpr.h
         Core/TensorSlicing.h
         Core/RowSparse.h
+        Core/Wrapper_LAPACKE.h
         Core/Wrapper_OpenMP.h
-        FiniteDiff/BOV.h
-        FiniteDiff/BOV.cpp
         FiniteDiff/RectDomain.h
         FiniteDiff/FuncFiller.h
         FiniteDiff/Intergrid.h
@@ -28,7 +27,7 @@ add_library(${LIB_NAME}
         FiniteDiff/LevelOp.cpp
         FiniteDiff/Multigrid.h
         FiniteDiff/Multigrid.cpp
-        Core/Wrapper_LAPACKE.h)
+        )
 if(USE_MKL)
     target_link_libraries(${LIB_NAME} -Wl,-rpath,${MKLROOT}/lib -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl)
 else()

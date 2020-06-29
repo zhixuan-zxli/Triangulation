@@ -6,7 +6,7 @@ template <class T>
 void GhostFiller<Dim>::doFillGhosts(Tensor<Real, Dim> &aData, int D, int side, char type, const T &cData) const
 {
   const int nG = rd.getNumGhost();
-  assert(nG >= 2);
+  assert(nG >= 1);
   int bound[] = {rd.lo()[D], rd.hi()[D]};
   if(side > 0)
     std::swap(bound[0], bound[1]);
@@ -30,16 +30,7 @@ void GhostFiller<Dim>::doFillGhosts(Tensor<Real, Dim> &aData, int D, int side, c
     if(rd.getStaggered() == D) {
       if(type == 'N') {
         ito = bound[0] + side;
-        aData.slice(D, ito) = aData.slice(D, ito - side) * (-10.0/3)
-            + aData.slice(D, ito - 2*side) * (18.0/3)
-            + aData.slice(D, ito - 3*side) * (-6.0/3)
-            + aData.slice(D, ito - 4*side) * (1.0/3)
-            + cData * (4.0 * dx[D]); // near side
-        aData.slice(D, ito + side) = aData.slice(D, ito - side) * (-80.0/3)
-            + aData.slice(D, ito - 2*side) * (120.0/3)
-            + aData.slice(D, ito - 3*side) * (-45.0/3)
-            + aData.slice(D, ito - 4*side) * (8.0/3)
-            + cData * (20.0 * dx[D]); // far side
+        aData.slice(D, ito) = aData.slice(D, ito - 2*side) + cData * (2.0 * dx[D]);
       } else if(type == 'D') {
         // set to the Dirichlet values and done
         aData.slice(D, bound[0]) = cData;
@@ -47,27 +38,9 @@ void GhostFiller<Dim>::doFillGhosts(Tensor<Real, Dim> &aData, int D, int side, c
     } else { // non-staggered dimension
       ito = bound[0] + side;
       if(type == 'N') {
-        aData.slice(D, ito) = aData.slice(D, ito - side) * (1.0/2)
-            + aData.slice(D, ito - 2 * side) * (9.0/10)
-            + aData.slice(D, ito - 3 * side) * (-1.0/2)
-            + aData.slice(D, ito - 4 * side) * (1.0/10)
-            + cData * (6.0/5 * dx[D]); // near side
-        aData.slice(D, ito + side) = aData.slice(D, ito - side) * (-15.0/2)
-            + aData.slice(D, ito - 2 * side) * (29.0/2)
-            + aData.slice(D, ito - 3 * side) * (-15.0/2)
-            + aData.slice(D, ito - 4 * side) * (3.0/2)
-            + cData * (6.0 * dx[D]); // far side
+        aData.slice(D, ito) = aData.slice(D, ito - side) + cData * dx[D];
       } else if(type == 'D') {
-        aData.slice(D, ito) = aData.slice(D, ito - side) * (-77.0/12)
-            + aData.slice(D, ito - 2 * side) * (43.0/12)
-            + aData.slice(D, ito - 3 * side) * (-17.0/12)
-            + aData.slice(D, ito - 4 * side) * (1.0/4)
-            + cData * (5.0); // near side
-        aData.slice(D, ito + side) = aData.slice(D, ito - side) * (-505.0/12)
-            + aData.slice(D, ito - 2 * side) * (335.0/12)
-            + aData.slice(D, ito - 3 * side) * (-145.0/12)
-            + aData.slice(D, ito - 4 * side) * (9.0/4)
-            + cData * (25.0); // far side
+        aData.slice(D, ito) = aData.slice(D, ito - side) * (-1.0) + cData * 2.0;
       }
     }
   } // end if type == 'D' or 'N'
