@@ -33,7 +33,10 @@ extern std::ostream tmpos;
 #define push_dbglevel(x)
 #define pop_dbglevel()
 #define reset_dbglevel(x)
-#define get_dbglevel() (-1)
+#ifndef DBGLEVEL
+#define DBGLEVEL -1
+#endif
+#define get_dbglevel() (DBGLEVEL)
 
 #endif // NDEBUG
 
@@ -41,5 +44,6 @@ extern std::ostream tmpos;
 #define dbgcout1 (get_dbglevel()>=1) && std::cout << "  "
 #define dbgcout2 (get_dbglevel()>=2) && std::cout << "    "
 #define dbgcout3 (get_dbglevel()>=3) && std::cout << "      "
+#define dbgonly(a, x) (get_dbglevel() >= (a)) && (x)
 
 #endif // CONFIG_H
