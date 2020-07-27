@@ -85,6 +85,21 @@ public:
     return res;
   }
 
+  Curve<Dim,Order> rotate(Real theta) const {
+    const Real c = cos(theta), s = sin(theta);
+    Curve<Dim, Order> res;
+    res.knots = this->knots;
+    for(const auto &p : this->polys) {
+      T_Polynomial q;
+      for(int k = 0; k < Order; ++k) {
+        q[k][0] = p[k][0] * c + p[k][1] * (-s);
+        q[k][1] = p[k][0] * s + p[k][1] * c;
+      }
+      res.polys.push_back(q);
+    }
+    return res;
+  }
+
   // advanved operations
 public:
   Curve<Dim,Order> extract(Real from, Real to, Real tol) const;

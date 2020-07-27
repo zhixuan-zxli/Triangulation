@@ -166,6 +166,7 @@ struct ipow_wrapper<Polynomial<Order,T>,0,0> {
 };
 
 template <int Ord1, int Ord2, class CT>
+inline
 Polynomial<Ord1+Ord2-1,CT> operator*(const Polynomial<Ord1,CT> &lhs, const Polynomial<Ord2,CT> &rhs)
 {
   Polynomial<Ord1+Ord2-1,CT> res; // res is zeroized

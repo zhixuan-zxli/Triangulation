@@ -5,7 +5,7 @@
 #include "Box.h"
 
 template <class T, int Dim>    class  Tensor;
-template <class T, int Dim>    class  TensorSlicing;
+template <class T, int Dim>    class  TensorSlice;
 template <class, class>        struct TensorUnaryOp;
 template <class, class, class> struct TensorBinaryOp;
 
@@ -91,11 +91,11 @@ public:
   //========================================
   // slicing
 public:
-  TensorSlicing<T,Dim> slice(const Box<Dim> &pbox) const;
+  TensorSlice<T, Dim> slice(const Box<Dim> &pbox) const;
 
   // Note : This is a co-dimension 1 reduction.
   // Use this syntax repeatedly for reduction of higher co-dimensions.
-  TensorSlicing<T,Dim-1> slice(int D, int a) const;
+  TensorSlice<T, Dim-1> slice(int D, int a) const;
 
   //========================================
   // getters

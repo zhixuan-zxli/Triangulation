@@ -1,28 +1,28 @@
-#ifndef TENSORSLICING_H
-#define TENSORSLICING_H
+#ifndef TENSORSLICE_H
+#define TENSORSLICE_H
 
 #include "Core/TensorExpr.h"
 #include "Core/VecCompare.h"
 
 // always provide a zero-base indexing to the data
 template <class T, int Dim>
-class TensorSlicing : public TensorExpr<const TensorSlicing<T,Dim> &>
+class TensorSlice : public TensorExpr<const TensorSlice<T, Dim> &>
 {
 public:
   using iVec = Vec<int, Dim>;
 
-  TensorSlicing() = delete;
-  // copy constructor of TensorSlicing. do not mean copying the underlying data
-  TensorSlicing(const TensorSlicing<T, Dim> &) = default;
+  TensorSlice() = delete;
+  // copy constructor of TensorSlice. do not mean copying the underlying data
+  TensorSlice(const TensorSlice<T, Dim> &) = default;
 
-  TensorSlicing<T,Dim>& operator=(const T &a);
+  TensorSlice<T, Dim>& operator=(const T &a);
 
   // assignment of the underlying data, not a copy assignment
-  TensorSlicing<T,Dim> &operator=(const TensorSlicing<T,Dim> &rhs);
+  TensorSlice<T, Dim> &operator=(const TensorSlice<T, Dim> &rhs);
 
   // assign from expressions
   template <class TExpr>
-  TensorSlicing<T,Dim> &operator=(const TensorExpr<TExpr> &expr);
+  TensorSlice<T, Dim> &operator=(const TensorExpr<TExpr> &expr);
 
   // support for template expressions
 public:
@@ -40,7 +40,7 @@ public:
 protected:
   template <class S, int E> friend class Tensor;
 
-  TensorSlicing(T *_z, const iVec &_sz, const iVec &_st) : zData(_z), sz(_sz), stride(_st)
+  TensorSlice(T *_z, const iVec &_sz, const iVec &_st) : zData(_z), sz(_sz), stride(_st)
   {
   }
 
@@ -52,7 +52,7 @@ protected:
 //================================================
 
 template <class T, int Dim>
-TensorSlicing<T,Dim>& TensorSlicing<T,Dim>::operator=(const T &a)
+TensorSlice<T, Dim>& TensorSlice<T, Dim>::operator=(const T &a)
 {
   if(Dim==1) {
 #pragma omp parallel for default(shared) schedule (static)
@@ -76,16 +76,16 @@ TensorSlicing<T,Dim>& TensorSlicing<T,Dim>::operator=(const T &a)
 
 template <class T, int Dim>
 inline
-TensorSlicing<T,Dim>& TensorSlicing<T,Dim>::operator=(const TensorSlicing<T,Dim> &rhs)
+TensorSlice<T, Dim>& TensorSlice<T, Dim>::operator=(const TensorSlice<T, Dim> &rhs)
 {
-  *this = static_cast<const TensorExpr<const TensorSlicing<T,Dim> &> &>(rhs);
+  *this = static_cast<const TensorExpr<const TensorSlice<T, Dim> &> &>(rhs);
   return *this;
 }
 
 template <class T, int Dim>
 template <class TExpr>
 inline
-TensorSlicing<T,Dim>& TensorSlicing<T,Dim>::operator=(const TensorExpr<TExpr> &expr)
+TensorSlice<T, Dim>& TensorSlice<T, Dim>::operator=(const TensorExpr<TExpr> &expr)
 {
   assert((VecCompare<int,Dim>().compare(sz, expr.box().size())) == 0);
   if(Dim==1) {
@@ -113,19 +113,19 @@ TensorSlicing<T,Dim>& TensorSlicing<T,Dim>::operator=(const TensorExpr<TExpr> &e
 
 template <class T, int Dim>
 inline
-TensorSlicing<T,Dim> Tensor<T,Dim>::slice(const Box<Dim> &pbox) const
+TensorSlice<T, Dim> Tensor<T, Dim>::slice(const Box<Dim> &pbox) const
 {
-  return TensorSlicing<T,Dim>(const_cast<T*>(aData + dot(pbox.lo() - bx.lo(), stride)), pbox.size(), stride);
+  return TensorSlice<T, Dim>(const_cast<T*>(aData + dot(pbox.lo() - bx.lo(), stride)), pbox.size(), stride);
 }
 
 template <class T, int Dim>
 inline
-TensorSlicing<T,Dim-1> Tensor<T,Dim>::slice(int D, int a) const
+TensorSlice<T, Dim-1> Tensor<T, Dim>::slice(int D, int a) const
 {
   auto newlo = bx.lo();
   newlo[D] = a;
-  return TensorSlicing<T,Dim-1>(const_cast<T*>(aData + dot(newlo - bx.lo(), stride)), reduce(bx.size(), D), reduce(stride, D));
+  return TensorSlice<T, Dim-1>(const_cast<T*>(aData + dot(newlo - bx.lo(), stride)), reduce(bx.size(), D), reduce(stride, D));
 }
 
 
-#endif //TENSORSLICING_H
+#endif //TENSORSLICE_H

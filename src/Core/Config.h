@@ -44,6 +44,5 @@ extern std::ostream tmpos;
 #define dbgcout1 (get_dbglevel()>=1) && std::cout << "  "
 #define dbgcout2 (get_dbglevel()>=2) && std::cout << "    "
 #define dbgcout3 (get_dbglevel()>=3) && std::cout << "      "
-#define dbgonly(a, x) (get_dbglevel() >= (a)) && (x)
 
 #endif // CONFIG_H

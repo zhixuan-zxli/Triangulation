@@ -38,8 +38,8 @@ public:
     return Box<Dim>(l,h);
   }
 
-  Box<Dim> refine() const { return Box<Dim>(corners[0]*2, corners[1]*2); }
-  Box<Dim> coarsen() const { return Box<Dim>(corners[0]/2, corners[1]/2); }
+//  Box<Dim> refine() const { return Box<Dim>(corners[0]*2, corners[1]*2+1); }
+//  Box<Dim> coarsen() const { return Box<Dim>(corners[0]/2, corners[1]/2); }
 
 public:
   bool empty() const {
@@ -115,29 +115,5 @@ for(int i3=0; i3<sz[3]; ++i3) \
 for(int i2=0; i2<sz[2]; ++i2) \
 for(int i1=0; i1<sz[1]; ++i1) \
 for(int i0=0; i0<sz[0]; ++i0)
-
-template <int Dim, class T>
-inline
-void ddfor(const Box<Dim> &bx, const T &func, bool enable_par = true)
-{
-  static_assert(1 <= Dim && Dim <= 4, "Unsupported dimension.");
-  if(Dim == 1) {
-#pragma omp parallel for if(enable_par) default(shared) schedule(static)
-    loop_box_1(bx, i)
-      func({i});
-  } else if(Dim == 2) {
-#pragma omp parallel for if(enable_par) default(shared) schedule(static)
-    loop_box_2(bx, i, j)
-      func({i, j});
-  } else if(Dim == 3) {
-#pragma omp parallel for if(enable_par) default(shared) schedule(static)
-    loop_box_3(bx, i, j, k)
-      func({i, j, k});
-  } else if(Dim == 4) {
-#pragma omp parallel for if(enable_par) default(shared) schedule(static)
-    loop_box_4(bx, i, j, k, l)
-      func({i, j, k, l});
-  }
-}
 
 #endif //BOX_H

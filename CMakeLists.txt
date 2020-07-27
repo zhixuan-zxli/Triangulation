@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(zxFV)
+project(Doraemon)
 
 if(NOT DIM)
     set(DIM "2")
@@ -51,13 +51,12 @@ message(STATUS "System : ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Build type : ${CMAKE_BUILD_TYPE}")
 message(STATUS "CMAKE_CXX_FLAGS : ${CMAKE_CXX_FLAGS}")
 
-set(LIB_NAME "zxFV")
+set(LIB_NAME "doraemon")
 
 include_directories(src)
 add_subdirectory(src)
 
 option(ENABLE_TEST "Whether to enable the tests. " OFF)
 if (ENABLE_TEST)
-    #enable_testing()
     add_subdirectory(test)
 endif()

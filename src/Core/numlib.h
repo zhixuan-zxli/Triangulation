@@ -193,7 +193,8 @@ inline Real aquad(const T_Func &g, Real a, Real b, Real absTol = 1e-16) {
     if(std::abs(delta) < absTol)
       break;
   }
-  dbgcout3 << "aquad() : est. error = " << delta << ", subdiv = " << (1<<k) << std::endl;
+  if(std::abs(delta) >= absTol)
+    dbgcout3 << "aquad() : est. error = " << delta << ", subdiv = " << (1<<k) << std::endl;
   return R[k][1] + delta;
 }
 
