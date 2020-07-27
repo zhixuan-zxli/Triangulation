@@ -185,7 +185,7 @@ inline T norm(const Vec<T,Dim> &lhs, int nt = 2)
 }
 
 template <int Dim>
-Vec<Real,Dim> normalize(const Vec<Real,Dim> &lhs) {
+inline Vec<Real,Dim> normalize(const Vec<Real,Dim> &lhs) {
   Real l = norm(lhs, 2);
   return lhs / l;
 }

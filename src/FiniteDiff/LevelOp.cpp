@@ -1,5 +1,5 @@
 #include "FiniteDiff/LevelOp.h"
-#include "Core/TensorSlicing.h"
+#include "Core/TensorSlice.h"
 #include "Core/numlib.h"
 
 template <>

@@ -12,13 +12,12 @@ public:
   using iVec = Vec<int,Dim>;
   using BaseClass = Box<Dim>;
 
-  // todo : Add the node-centered grid.
-  enum StaggerType { CellCentered = -1 };
+  enum { FaceCentered = 0/*From 0 to Dim-1*/, CellCentered = -1, NodeCentered = -2 };
 
   RectDomain() = default;
 
-  RectDomain(const BaseClass &aBox, const rVec& aDx, int aStaggered, int aNumGhost)
-      : BaseClass(aBox), dx(aDx), staggered(aStaggered), nGhost(aNumGhost)
+  RectDomain(const BaseClass &aBox, const rVec& aDx, int aCentering, int aNumGhost)
+      : BaseClass(aBox), dx(aDx), centering(aCentering), nGhost(aNumGhost)
   {
   }
 
@@ -32,11 +31,16 @@ public:
   const rVec &spacing() const { return dx; }
   const rVec getDelta() const {
     rVec delta = 0.5;
-    if(staggered != CellCentered)
-      delta[staggered] = 0;
-    return delta;
+    if(centering == CellCentered) {
+      return delta;
+    } else if(centering == NodeCentered) {
+      return rVec(0.0);
+    } else {
+      delta[centering] = 0;
+      return delta;
+    }
   }
-  int getStaggered() const { return staggered; }
+  int getCentering() const { return centering; }
   int getNumGhost() const { return nGhost; }
   //
   BaseClass getGhostedBox() const { return BaseClass::inflate(nGhost); }
@@ -45,30 +49,44 @@ public:
 public:
   RectDomain refine() const {
     iVec newlo = lo() * 2;
-    iVec newhi = hi() * 2 + 1;
-    if(staggered != CellCentered)
-      --newhi[staggered];
-    return RectDomain(BaseClass(newlo, newhi), dx/2, staggered, nGhost);
+    iVec newhi;
+    if(centering == NodeCentered) {
+      newhi = hi() * 2;
+    } else if(centering == CellCentered) {
+      newhi = hi() * 2 + 1;
+    } else if(centering >= 0) {
+      newhi = hi() * 2 + 1 - iVec::unit(centering);
+    }
+    return RectDomain(BaseClass(newlo, newhi), dx/2, centering, nGhost);
   }
   RectDomain coarsen() const {
     iVec newlo = lo() / 2;
     iVec newhi = hi() / 2;
-//    if(staggered != CellCentered)
-//      ++newlo[staggered];
-    return RectDomain(BaseClass(newlo, newhi), dx*2, staggered, nGhost);
+    return RectDomain(BaseClass(newlo, newhi), dx*2, centering, nGhost);
   }
   RectDomain stagger(int type) const {
-    if(type == staggered)
+    if(type == centering)
       return *this;
-    if(staggered == CellCentered)
-      return RectDomain(BaseClass(lo(), hi() + iVec::unit(type)), dx, type, nGhost);
-    return RectDomain(BaseClass(lo(), hi() - iVec::unit(staggered) + iVec::unit(type)),
-                      dx, type, nGhost);
+    Box<Dim> ccBox;
+    if(centering == CellCentered) {
+      ccBox = *this;
+    } else if(centering == NodeCentered) {
+      ccBox = Box<Dim>(lo(), hi()-1);
+    } else {
+      ccBox = Box<Dim>(lo(), hi() - iVec::unit(centering));
+    }
+    if(type == CellCentered) {
+      return RectDomain(ccBox, dx, type, nGhost);
+    } else if(type == NodeCentered) {
+      return RectDomain({ccBox.lo(), ccBox.hi()+1}, dx, type, nGhost);
+    } else {
+      return RectDomain({ccBox.lo(), ccBox.hi() + iVec::unit(type)}, dx, type, nGhost);
+    }
   }
 
 protected:
   rVec dx;
-  int staggered;
+  int centering;
   int nGhost;
 };
 

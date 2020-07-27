@@ -12,8 +12,8 @@ public:
       : coarseGrid(aCoarseGrid), fineGrid(aFineGrid)
   {
     // Multigrid on the staggered grid is not yet supported.
-    assert(aCoarseGrid.getStaggered() == RectDomain<Dim>::CellCentered);
-    assert(aFineGrid.getStaggered() == RectDomain<Dim>::CellCentered);
+    assert(aCoarseGrid.getCentering() == RectDomain<Dim>::CellCentered);
+    assert(aFineGrid.getCentering() == RectDomain<Dim>::CellCentered);
   }
 
   virtual ~Intergrid() = default;

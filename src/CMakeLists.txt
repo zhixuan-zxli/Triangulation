@@ -13,7 +13,7 @@ add_library(${LIB_NAME}
         Core/Curve.cpp
         Core/Tensor.h
         Core/TensorExpr.h
-        Core/TensorSlicing.h
+        Core/TensorSlice.h
         Core/RowSparse.h
         Core/Wrapper_LAPACKE.h
         Core/Wrapper_OpenMP.h

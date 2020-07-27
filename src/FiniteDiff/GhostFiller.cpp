@@ -1,4 +1,4 @@
-#include "Core/TensorSlicing.h"
+#include "Core/TensorSlice.h"
 #include "FiniteDiff/GhostFiller.h"
 
 template <int Dim>
@@ -13,7 +13,7 @@ void GhostFiller<Dim>::doFillGhosts(Tensor<Real, Dim> &aData, int D, int side, c
   int ifrom, ito;
 
   if(type == 'P') {
-    if(rd.getStaggered() == D) {
+    if(rd.getCentering() == D) {
       ito = bound[0] + side;
       ifrom = bound[1] + side;
     } else { // non-staggered in dimension D
@@ -27,7 +27,7 @@ void GhostFiller<Dim>::doFillGhosts(Tensor<Real, Dim> &aData, int D, int side, c
     }
   } else {
     auto dx = rd.spacing();
-    if(rd.getStaggered() == D) {
+    if(rd.getCentering() == D) {
       if(type == 'N') {
         ito = bound[0] + side;
         aData.slice(D, ito) = aData.slice(D, ito - 2*side) + cData * (2.0 * dx[D]);
