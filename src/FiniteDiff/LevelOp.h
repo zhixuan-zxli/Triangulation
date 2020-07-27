@@ -24,7 +24,7 @@ public:
   void computeCurl(const Tensor<Real, Dim> *u, Tensor<Real, Dim> *curlOfU) const;
   void computeConvection(const Tensor<Real, Dim> *u, Tensor<Real, Dim> *cnvu) const;
 
-  void filterFace2Cell(const Tensor<Real, Dim> *aFaceData, Tensor<Real, Dim> *aCellData) const;
+  void filterFace2Cell(const Tensor<Real, Dim> *aFaceData, Tensor<Real, Dim+1> &aCellData) const;
 
 protected:
   template <int d>

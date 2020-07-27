@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <vector>
 #include <sstream>
-#include "Core/TensorSlicing.h"
+#include "Core/TensorSlice.h"
 #include "FiniteDiff/RectDomain.h"
 #include "FiniteDiff/FuncFiller.h"
 #include "FiniteDiff/GhostFiller.h"
@@ -72,15 +72,16 @@ const bool testLaplacian = true;
 const bool testLaplacianWithGhosts = true;
 const bool testFilter = true;
 const bool testConvection = true;
+//const bool testSilo = true;
 
-std::array<Real,numRatesOfOutput> testOps(int N)
+std::array<Real,numRatesOfOutput> testOps(int N, bool writeFiles)
 {
   std::array<Real, numRatesOfOutput> errnorm;
-  RectDomain<Dim> rd(Box<Dim>(0, N-1), 1.0/N, RectDomain<Dim>::CellCentered, 2);
-  FuncFiller<Dim> ff(rd);
-  GhostFiller<Dim> gf(rd);
-  LevelOp<Dim> fvop(rd);
-  Box<Dim> gbx = rd.getGhostedBox();
+  RectDomain<Dim> pGrid(Box<Dim>(0, N-1), 1.0/N, RectDomain<Dim>::CellCentered, 2);
+  FuncFiller<Dim> ff(pGrid);
+  GhostFiller<Dim> gf(pGrid);
+  LevelOp<Dim> fvop(pGrid);
+  Box<Dim> gbx = pGrid.getGhostedBox();
   Tensor<Real, Dim> phi(gbx);
   Tensor<Real, Dim> err(gbx);
   Tensor<Real, Dim> res(gbx);
@@ -110,30 +111,35 @@ std::array<Real,numRatesOfOutput> testOps(int N)
   // test filter
   RectDomain<Dim> uGrid[Dim];
   Box<Dim> ugbx[Dim];
-  Tensor<Real, Dim+1> cVel(pGrid, Dim);
-  Tensor<Real, Dim+1> cErr[Dim];
+  Tensor<Real, Dim+1> cVel(gbx, Dim);
+  Tensor<Real, Dim+1> cErr(gbx, Dim);
   Tensor<Real, Dim> fVel[Dim];
   for (int d = 0; d < Dim; ++d) {
-    uGrid[d] = rd.stagger(d);
+    uGrid[d] = pGrid.stagger(d);
     ugbx[d] = uGrid[d].getGhostedBox();
-    cVel[d].resize(gbx);
-    cErr[d].resize(gbx);
     fVel[d].resize(ugbx[d]);
   }
   if(testFilter) {
     for(int d = 0; d < Dim; ++d) {
-      ff.fillAvr(cErr[d], RectDomain<Dim>::CellCentered, [&](const rVec &x) { return VEL(x)[d]; });
+      Tensor<Real, Dim> temp(cErr, d);
+      ff.fillAvr(temp, RectDomain<Dim>::CellCentered, [&](const rVec &x) { return VEL(x)[d]; });
       ff.fillAvr(fVel[d], d, [&](const rVec &x) { return VEL(x)[d]; });
     }
     fvop.filterFace2Cell(fVel, cVel);
-    for (int d = 0; d < Dim; ++d)
-      cErr[d] = cErr[d] - cVel[d];
+    cErr = cErr - cVel;
     for (int p = 0; p <= 2; ++p) {
       rVec errComp;
-      for (int d = 0; d < Dim; ++d)
-        errComp[d] = fvop.computeNorm(cErr[d], RectDomain<Dim>::CellCentered, p);
+      for (int d = 0; d < Dim; ++d) {
+        Tensor<Real, Dim> temp(cErr, d);
+        errComp[d] = fvop.computeNorm(temp, RectDomain<Dim>::CellCentered, p);
+      }
       errnorm[6 + p] = norm(errComp, p);
     }
+//    if(writeFiles) {
+//      Wrapper_Silo<Dim> writer("", "result", pGrid);
+//      writer.putScalar(phi, RectDomain<Dim>::CellCentered, "phi");
+//      writer.putVector(cVel, "velocity");
+//    }
   }
   // test convection
   if(testConvection) {
@@ -143,11 +149,8 @@ std::array<Real,numRatesOfOutput> testOps(int N)
       fCnv[d].resize(ugbx[d]);
       fErr[d].resize(ugbx[d]);
       ff.fillAvr(fErr[d], d, [&](const rVec &x) { return CNV(x)[d]; });
-//      fErr[d] = 0.0;
       ff.fillAvr(fVel[d], d, [&](const rVec &x) { return VEL(x)[d]; });
-//      fVel[d] = 0.0;
     }
-//    for(int n = 0; n < 100; ++n)
     fvop.computeConvection(fVel, fCnv);
     for (int d = 0; d < Dim; ++d) {
       fErr[d] = fErr[d] - fCnv[d];
@@ -170,7 +173,7 @@ void doTest(const std::vector<int> &gridSize)
   std::vector<std::array<Real, numRatesOfOutput>> errnorm(numGrid);
   for(int n = numGrid-1; n >= 0; --n) {
     std::cout << "\nTesting 1/h = " << gridSize[n] << std::endl;
-    errnorm[n] = testOps(gridSize[n]);
+    errnorm[n] = testOps(gridSize[n], /*testSilo && */n == 0);
   }
   printConvergenceTable(&gridSize[0], errnorm);
 }

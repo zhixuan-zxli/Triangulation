@@ -243,30 +243,30 @@ void LevelOp<2>::computeConvection(const Tensor<Real, 2> *u, Tensor<Real, 2> *cn
 }*/
 
 template <>
-void LevelOp<2>::filterFace2Cell(const Tensor<Real, 2> *aFaceData, Tensor<Real, 2> *aCellData) const
+void LevelOp<2>::filterFace2Cell(const Tensor<Real, 2> *aFaceData, Tensor<Real, 3> &aCellData) const
 {
   Box<2> valid = rd;
 #pragma omp parallel for default(shared) schedule(static)
   loop_box_2(valid, i, j)
-    aCellData[0](i, j) = aFaceData[0](i,j) * (1.0/2) + aFaceData[0](i+1,j) * (1.0/2);
+    aCellData(i, j, 0) = aFaceData[0](i,j) * (1.0/2) + aFaceData[0](i+1,j) * (1.0/2);
 #pragma omp parallel for default(shared) schedule(static)
   loop_box_2(valid, i, j)
-    aCellData[1](i, j) = aFaceData[1](i,j) * (1.0/2) + aFaceData[1](i,j+1) * (1.0/2);
+    aCellData(i, j, 1) = aFaceData[1](i,j) * (1.0/2) + aFaceData[1](i,j+1) * (1.0/2);
 }
 
 template <>
-void LevelOp<3>::filterFace2Cell(const Tensor<Real, 3> *aFaceData, Tensor<Real, 3> *aCellData) const
+void LevelOp<3>::filterFace2Cell(const Tensor<Real, 3> *aFaceData, Tensor<Real, 4> &aCellData) const
 {
   Box<3> valid = rd;
 #pragma omp parallel for default(shared) schedule(static)
   loop_box_3(valid, i, j, k)
-    aCellData[0](i, j, k) = aFaceData[0](i,j,k) * (1.0/2) + aFaceData[0](i+1,j,k) * (1.0/2);
+    aCellData(i, j, k, 0) = aFaceData[0](i,j,k) * (1.0/2) + aFaceData[0](i+1,j,k) * (1.0/2);
 #pragma omp parallel for default(shared) schedule(static)
   loop_box_3(valid, i, j, k)
-    aCellData[1](i, j, k) = aFaceData[1](i,j,k) * (1.0/2) + aFaceData[1](i,j+1,k) * (1.0/2);
+    aCellData(i, j, k, 1) = aFaceData[1](i,j,k) * (1.0/2) + aFaceData[1](i,j+1,k) * (1.0/2);
 #pragma omp parallel for default(shared) schedule(static)
   loop_box_3(valid, i, j, k)
-    aCellData[2](i, j, k) = aFaceData[2](i,j,k) * (1.0/2) + aFaceData[2](i,j,k+1) * (1.0/2);
+    aCellData(i, j, k, 2) = aFaceData[2](i,j,k) * (1.0/2) + aFaceData[2](i,j,k+1) * (1.0/2);
 }
 
 //============================================================
