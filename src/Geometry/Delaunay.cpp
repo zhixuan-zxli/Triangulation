@@ -62,18 +62,18 @@ protected:
   static unsigned char oppoVertex(unsigned char side) { return (side+2)%3; }
 
   /**
-   * Bridge the origin of aLeft to the origin of aRight.
-   * aLeft and aRight may be null.
+   * Bridge the origin of eLeft to the origin of eRight.
+   * eLeft and eRight may be null.
    * @return The new edges.
    */
-  static std::pair<EdgeRef, EdgeRef> bridge(EdgeRef aLeft, EdgeRef aRight)
+  static std::pair<EdgeRef, EdgeRef> bridge(EdgeRef eLeft, EdgeRef eRight)
   {
     Triangle *tLeft, *tRight;
     unsigned char sLeft, sRight;
-    unpack(aLeft, tLeft, sLeft);
-    unpack(aRight, tRight, sRight);
-    assert(aLeft == 0 || tLeft->vertices[oppoVertex(sLeft)] == nullptr);
-    assert(aRight == 0 || tRight->vertices[oppoVertex(sRight)] == nullptr);
+    unpack(eLeft, tLeft, sLeft);
+    unpack(eRight, tRight, sRight);
+    assert(eLeft == 0 || tLeft->vertices[oppoVertex(sLeft)] == nullptr);
+    assert(eRight == 0 || tRight->vertices[oppoVertex(sRight)] == nullptr);
     Triangle *tDown = new Triangle;
     tDown->vertices[2] = nullptr;
     Triangle *tUp = new Triangle;
@@ -81,7 +81,7 @@ protected:
     tDown->incident[0] = pack(tUp, 0);
     tUp->incident[0] = pack(tDown, 0);
     // bridge the left part
-    if(tLeft == nullptr) {
+    if(eLeft == 0) {
       tDown->incident[1] = pack(tUp, 2);
       tUp->incident[2] = pack(tDown, 1);
     } else {
@@ -95,7 +95,7 @@ protected:
       tDown->vertices[1] = tUp->vertices[0] = tLeft->vertices[sLeft];
     }
     // bridge the right part
-    if(tRight == nullptr) {
+    if(eRight == 0) {
       tDown->incident[2] = pack(tUp, 1);
       tUp->incident[1] = pack(tDown, 2);
     } else {
@@ -112,50 +112,43 @@ protected:
   }
 
   /**
-   * Establish an edge from b Dest to a Org, s.t. aLeft = bLeft = the left face of the new edge.
-   * @pre a and b are not null, and aDest = bOrg.
+   * Flip the edge e as the diagonal of a quadrilateral.
    */
-  static std::pair<EdgeRef, EdgeRef> mergeLeft(EdgeRef a, EdgeRef b)
+  static std::pair<EdgeRef, EdgeRef> flip(EdgeRef e)
   {
-    assert(a != 0);
-    assert(b != 0);
-    Triangle *ta, *tb;
-    unsigned char sa, sb;
-    unpack(a, ta, sa);
-    unpack(b, tb, sb);
-    assert(ta->vertices[oppoVertex(sa)] == nullptr);
-    assert(tb->vertices[oppoVertex(sb)] == nullptr);
-    // Fetch the neighbors
-    Triangle *taRight, *taNext, *tbRight, *tbNext;
-    unsigned char saRight, saNext, sbRight, sbNext;
-    unpack(ta->incident[sa], taRight, saRight);
-    unpack(ta->incident[(sa+2)%3], taNext, saNext);
-    unpack(tb->incident[sb], tbRight, sbRight);
-    unpack(tb->incident[(sb+1)%3], tbNext, sbNext);
-    // Prepare the connecting vertices
-    const rVec *va = ta->vertices[sa];
-    const rVec *vb = tb->vertices[(sb+1)%3];
-    const rVec *v_ = ta->vertices[(sa+1)%3];
-    assert(v_ == tb->vertices[sb]);
-    // Construct the new triangles
-    ta->vertices[0] = vb;
-    ta->vertices[1] = va;
-    ta->vertices[2] = v_;
-    tb->vertices[0] = va;
-    tb->vertices[1] = vb;
-    tb->vertices[2] = nullptr;
-    // Reset the incident relations
-    taRight->incident[saRight] = pack(ta, 1);
-    ta->incident[1] = pack(taRight, saRight);
-    taNext->incident[saNext] = pack(tb, 2);
-    tb->incident[2] = pack(taNext, saNext);
-    tbRight->incident[saRight] = pack(ta, 2);
-    ta->incident[2] = pack(tbRight, saRight);
-    tbNext->incident[sbNext] = pack(tb, 1);
-    tb->incident[1] = pack(tbNext, sbNext);
-    ta->incident[0] = pack(tb, 0);
-    tb->incident[0] = pack(ta, 0);
-    return std::make_pair(pack(ta, 0), pack(tb, 0));
+    assert(e != 0);
+    Triangle *eLeft, *eRight, *eLeftUp, *eLeftDown, *eRightUp, *eRightDown;
+    unsigned char *sLeft, sRight, sLeftUp, sLeftDown, sRightUp, sRightDown;
+    unpack(e,                              eLeft,      sLeft);
+    unpack(eLeft->incident[(sLeft+1)%3],   eLeftUp,    sLeftUp);
+    unpack(eLeft->incident[(sLeft+2)%3],   eLeftDown,  sLeftDown);
+    unpack(eLeft->incident[sLeft],         eRight,     sRight);
+    unpack(eRight->incident[(sRight+1)%3], eRightDown, sRightDown);
+    unpack(eRight->incident[(sRight+2)%3], eRightUp,   sRightUp);
+    // Reshape the triangles. Now eLeft becomes eDown, eRight becomes eUp.
+    const rVec *v[4] = { eLeft->vertices[sLeft],
+                         eLeft->vertices[(sLeft+1)%3],
+                         eLeft->vertices[(sLeft+2)%3],
+                         eRight->vertices[(sRight+2)%3] };
+    eLeft->vertices[0] = v[3];
+    eLeft->vertices[1] = v[2];
+    eLeft->vertices[2] = v[0];
+    eRight->vertices[0] = v[2];
+    eRight->vertices[1] = v[3];
+    eRight->vertices[2] = v[1];
+    // Re-establish the connectivity.
+    eLeft->incident[0]  = pack(eRight,     0);
+    eLeft->incident[1]  = pack(eLeftDown,  sLeftDown);
+    eLeft->incident[2]  = pack(eRightDown, sRightDown);
+    eRight->incident[0] = pack(eLeft,      0);
+    eRight->incident[1] = pack(eRightUp,   sRightUp);
+    eRight->incident[2] = pack(eLeftUp,    sLeftUp);
+    eLeftUp->incident[sLeftUp]       = pack(eRight, 2);
+    eLeftDown->incident[sLeftDown]   = pack(eLeft,  1);
+    eRightUp->incident[sRightUp]     = pack(eRight, 1);
+    eRightDown->incident[sRightDown] = pack(eLeft,  2);
+    // Return the new edges.
+    return std::make_pair(pack(eLeft, 0), pack(eRight, 0));
   }
 
   // computational routines
@@ -204,11 +197,11 @@ protected:
       unpack(ep12.second, tUp_, sUp_);
       tDown_->vertices[0] = tUp_->vertices[1] = &v[2];
       if(ccw(v[0], v[1], v[2]) > epsilon) {
-        auto ep20 = mergeLeft(ep01.second, ep12.second);
+        auto ep20 = flip(ep01.second, ep12.second);
         triOnHull[0] = ep20.second;
         triOnHull[1] = ep12.first;
       } else if(ccw(v[0], v[1], v[2]) < -epsilon) {
-        auto ep20 = mergeLeft(ep12.first, ep01.first);
+        auto ep20 = flip(ep12.first, ep01.first);
         triOnHull[0] = ep01.second;
         triOnHull[1] = ep20.second;
       } else {
