@@ -160,9 +160,9 @@ protected:
   /**
    * The recursive procedure of Guibas-Stolfi triangulation.
    * @pre The vertices are sorted in x-increasing order.
-   * @param triOnHull [0] for the cw edge from the leftmost vertex,
+   * @param triOnHull [0] for the cw edge arrived at the leftmost vertex,
    *                  [1] for the cw edge from the rightmost vertex,
-   *                  [2] for the ccw edge from the bottommost vertex,
+   *                  [2] for the ccw edge arrived at the bottommost vertex,
    *                  [3] for the cw edge from the topmost vertex.
    */
   void Guibas_Stolfi_recur(const rVec *v,
@@ -172,43 +172,67 @@ protected:
     assert(nV >= 2);
     // Case 1. Two vertices.
     if(nV == 2) {
-//      auto ep = bridge(0, 0);
-//      Triangle *tDown, *tUp;
-//      unsigned char sDown, sUp;
-//      unpack(ep.first, tDown, sDown);
-//      unpack(ep.second, tUp, sUp);
-//      tDown->vertices[0] = tUp->vertices[1] = &v[1];
-//      tDown->vertices[1] = tUp->vertices[0] = &v[0];
-//      triOnHull[0] = pack(tUp, 0);
-//      triOnHull[1] = pack(tDown, 0);
+      auto ep = bridge(0, 0);
+      Triangle *tDown, *tUp;
+      unsigned char sDown, sUp;
+      unpack(ep.first, tDown, sDown);
+      unpack(ep.second, tUp, sUp);
+      tDown->vertices[0] = tUp->vertices[1] = &v[1];
+      tDown->vertices[1] = tUp->vertices[0] = &v[0];
+      triOnHull[0] = ep.first;
+      triOnHull[1] = ep.first;
     // Case 2. Three vertices.
     } else if(nV == 3) {
-//      auto ep01 = bridge(0, 0);
-//      Triangle *tDown, *tUp, *tDown_, *tUp_;
-//      unsigned char sDown, sUp, sDown_, sUp_;
-//      unpack(ep01.first, tDown, sDown);
-//      unpack(ep01.second, tUp, sUp);
-//      tDown->vertices[0] = tUp->vertices[1] = &v[1];
-//      tDown->vertices[1] = tUp->vertices[0] = &v[0];
-//      auto ep12 = bridge(pack(tDown, 0), 0);
-//      unpack(ep12.first, tDown_, sDown_);
-//      unpack(ep12.second, tUp_, sUp_);
-//      tDown_->vertices[0] = tUp_->vertices[1] = &v[2];
-//      if(ccw(v[0], v[1], v[2]) > epsilon) {
-//        auto ep20 = flip(ep01.second, ep12.second);
-//        triOnHull[0] = ep20.second;
-//        triOnHull[1] = ep12.first;
-//      } else if(ccw(v[0], v[1], v[2]) < -epsilon) {
-//        auto ep20 = flip(ep12.first, ep01.first);
-//        triOnHull[0] = ep01.second;
-//        triOnHull[1] = ep20.second;
-//      } else {
-//        // v0, v1, v2 almost colinear
-//        triOnHull[0] = ep01.second;
-//        triOnHull[1] = ep12.first;
-//      }
+      Triangle *tDown, *tUp, *tDown_, *tUp_;
+      unsigned char sDown, sUp, sDown_, sUp_;
+      auto ep01 = bridge(0, 0);
+      unpack(ep01.first, tDown, sDown);
+      unpack(ep01.second, tUp, sUp);
+      tDown->vertices[0] = tUp->vertices[1] = &v[1];
+      tDown->vertices[1] = tUp->vertices[0] = &v[0];
+      auto ep12 = bridge(ep01.first, 0);
+      unpack(ep12.first, tDown_, sDown_);
+      unpack(ep12.second, tUp_, sUp_);
+      tDown_->vertices[0] = tUp_->vertices[1] = &v[2];
+      if(ccw(v[0], v[1], v[2]) > epsilon) {
+        /*auto ep20 = */flip(pack(tUp_, 2));
+        triOnHull[0] = ep01.first;
+        triOnHull[1] = ep12.first;
+      } else if(ccw(v[0], v[1], v[2]) < -epsilon) {
+        auto ep20 = flip(pack(tDown_, 1));
+        triOnHull[0] = ep20.second;
+        triOnHull[1] = ep20.second;
+      } else {
+        // v0, v1, v2 almost colinear
+        triOnHull[0] = ep01.first;
+        triOnHull[1] = ep12.first;
+      }
     // Case 3. Four or more vertices
     } else {
+      // divide-and-conquer
+      int nL = nV/2;
+      int nR = nV - nL;
+      EdgeRef hull[2][4];
+      Guibas_Stolfi_recur(v, nL, hull[0]);
+      Guibas_Stolfi_recur(v + nL, nR, hull[1]);
+      // compute the new the segment belonging to the convex hull at the bottom
+      while(1) {
+        Triangle *tLeft, *tRight;
+        unsigned char sLeft, sRight;
+        unpack(hull[0][1], tLeft, sLeft);
+        unpack(hull[1][0], tRight, sRight);
+        if(ccw(*tLeft->vertices[sLeft], *tLeft->vertices[(sLeft+1)%3], *tRight->vertices[(sRight+1)%3]) > epsilon) {
+          unpack(tLeft->incident[(sLeft+1)%3], tLeft, sLeft);
+          sLeft = (sLeft+1) % 3;
+        } else if(ccw(*tRight->vertices[sRight], *tRight->vertices[(sRight+1)%3], *tLeft->vertices[sLeft]) > epsilon) {
+          unpack(tRight->incident[(sRight+2)%3], tRight, sRight);
+          sRight = (sRight+2) % 3;
+        } else {
+          // break because already arrived at the bottom
+          break;
+        }
+      } // end while(1)
+      // complete and update the new convex hull
     }
   }
 
