@@ -16,8 +16,7 @@ protected:
    */
   static Real ccw(const rVec &a, const rVec &b, const rVec &c)
   {
-    return (b[0]*c[1] + c[0]*a[1] + a[0]*b[1])
-        - (c[0]*b[1] + a[0]*c[1] + b[0]*a[1]);
+    return cross(b-a, c-a);
   }
 
   /**
@@ -29,11 +28,10 @@ protected:
     Real b2 = dot(b, b);
     Real c2 = dot(c, c);
     Real d2 = dot(d, d);
-    Real det1 = (b[0]*c[1]*d2 + b[1]*c2*d[0] + b2*c[0]*d[1]) - (b[0]*c2*d[1] + b[1]*c[0]*d2 + b2*c[1]*d[0]);
-    Real det2 = (a[0]*c[1]*d2 + a[1]*c2*d[0] + a2*c[0]*d[1]) - (a[0]*c2*d[1] + a[1]*c[0]*d2 + a2*c[1]*d[0]);
-    Real det3 = (a[0]*b[1]*d2 + a[1]*b2*d[0] + a2*b[0]*d[1]) - (a[0]*b2*d[1] + a[1]*b[0]*d2 + a2*b[1]*d[0]);
-    Real det4 = (a[0]*b[1]*c2 + a[1]*b2*c[0] + a2*b[0]*c[1]) - (a[0]*b2*c[1] + a[1]*b[0]*c2 + a2*b[1]*c[0]);
-    return -det1 + det2 - det3 + det4;
+    Vec<Real, 3> X { a[0]-d[0], b[0]-d[0], c[0]-d[0] };
+    Vec<Real, 3> Y { a[1]-d[1], b[1]-d[1], c[1]-d[1] };
+    Vec<Real, 3> R { a2-d2, b2-d2, c2-d2 };
+    return dot(X, cross(Y, R));
   }
 
   // data structure
@@ -118,7 +116,7 @@ protected:
   {
     assert(e != 0);
     Triangle *eLeft, *eRight, *eLeftUp, *eLeftDown, *eRightUp, *eRightDown;
-    unsigned char *sLeft, sRight, sLeftUp, sLeftDown, sRightUp, sRightDown;
+    unsigned char sLeft, sRight, sLeftUp, sLeftDown, sRightUp, sRightDown;
     unpack(e,                              eLeft,      sLeft);
     unpack(eLeft->incident[(sLeft+1)%3],   eLeftUp,    sLeftUp);
     unpack(eLeft->incident[(sLeft+2)%3],   eLeftDown,  sLeftDown);
@@ -160,7 +158,7 @@ protected:
   Triangle *Guibas_Stolfi_DT(const rVec *pVertices, std::size_t numVertices);
 
   /**
-   * The recursive version of Guibas-Stolfi triangulation.
+   * The recursive procedure of Guibas-Stolfi triangulation.
    * @pre The vertices are sorted in x-increasing order.
    * @param triOnHull [0] for the cw edge from the leftmost vertex,
    *                  [1] for the cw edge from the rightmost vertex,
@@ -174,41 +172,41 @@ protected:
     assert(nV >= 2);
     // Case 1. Two vertices.
     if(nV == 2) {
-      auto ep = bridge(0, 0);
-      Triangle *tDown, *tUp;
-      unsigned char sDown, sUp;
-      unpack(ep.first, tDown, sDown);
-      unpack(ep.second, tUp, sUp);
-      tDown->vertices[0] = tUp->vertices[1] = &v[1];
-      tDown->vertices[1] = tUp->vertices[0] = &v[0];
-      triOnHull[0] = pack(tUp, 0);
-      triOnHull[1] = pack(tDown, 0);
+//      auto ep = bridge(0, 0);
+//      Triangle *tDown, *tUp;
+//      unsigned char sDown, sUp;
+//      unpack(ep.first, tDown, sDown);
+//      unpack(ep.second, tUp, sUp);
+//      tDown->vertices[0] = tUp->vertices[1] = &v[1];
+//      tDown->vertices[1] = tUp->vertices[0] = &v[0];
+//      triOnHull[0] = pack(tUp, 0);
+//      triOnHull[1] = pack(tDown, 0);
     // Case 2. Three vertices.
     } else if(nV == 3) {
-      auto ep01 = bridge(0, 0);
-      Triangle *tDown, *tUp, *tDown_, *tUp_;
-      unsigned char sDown, sUp, sDown_, sUp_;
-      unpack(ep01.first, tDown, sDown);
-      unpack(ep01.second, tUp, sUp);
-      tDown->vertices[0] = tUp->vertices[1] = &v[1];
-      tDown->vertices[1] = tUp->vertices[0] = &v[0];
-      auto ep12 = bridge(pack(tDown, 0), 0);
-      unpack(ep12.first, tDown_, sDown_);
-      unpack(ep12.second, tUp_, sUp_);
-      tDown_->vertices[0] = tUp_->vertices[1] = &v[2];
-      if(ccw(v[0], v[1], v[2]) > epsilon) {
-        auto ep20 = flip(ep01.second, ep12.second);
-        triOnHull[0] = ep20.second;
-        triOnHull[1] = ep12.first;
-      } else if(ccw(v[0], v[1], v[2]) < -epsilon) {
-        auto ep20 = flip(ep12.first, ep01.first);
-        triOnHull[0] = ep01.second;
-        triOnHull[1] = ep20.second;
-      } else {
-        // v0, v1, v2 almost colinear
-        triOnHull[0] = ep01.second;
-        triOnHull[1] = ep12.first;
-      }
+//      auto ep01 = bridge(0, 0);
+//      Triangle *tDown, *tUp, *tDown_, *tUp_;
+//      unsigned char sDown, sUp, sDown_, sUp_;
+//      unpack(ep01.first, tDown, sDown);
+//      unpack(ep01.second, tUp, sUp);
+//      tDown->vertices[0] = tUp->vertices[1] = &v[1];
+//      tDown->vertices[1] = tUp->vertices[0] = &v[0];
+//      auto ep12 = bridge(pack(tDown, 0), 0);
+//      unpack(ep12.first, tDown_, sDown_);
+//      unpack(ep12.second, tUp_, sUp_);
+//      tDown_->vertices[0] = tUp_->vertices[1] = &v[2];
+//      if(ccw(v[0], v[1], v[2]) > epsilon) {
+//        auto ep20 = flip(ep01.second, ep12.second);
+//        triOnHull[0] = ep20.second;
+//        triOnHull[1] = ep12.first;
+//      } else if(ccw(v[0], v[1], v[2]) < -epsilon) {
+//        auto ep20 = flip(ep12.first, ep01.first);
+//        triOnHull[0] = ep01.second;
+//        triOnHull[1] = ep20.second;
+//      } else {
+//        // v0, v1, v2 almost colinear
+//        triOnHull[0] = ep01.second;
+//        triOnHull[1] = ep12.first;
+//      }
     // Case 3. Four or more vertices
     } else {
     }
