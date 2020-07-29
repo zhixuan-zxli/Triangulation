@@ -27,6 +27,8 @@ add_library(${LIB_NAME}
         FiniteDiff/LevelOp.cpp
         FiniteDiff/Multigrid.h
         FiniteDiff/Multigrid.cpp
+        Geometry/Delaunay.cpp
+        Geometry/Delaunay.h
         )
 if(USE_MKL)
     target_link_libraries(${LIB_NAME} -Wl,-rpath,${MKLROOT}/lib -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl)
