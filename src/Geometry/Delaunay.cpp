@@ -60,7 +60,8 @@ protected:
   static unsigned char oppoVertex(unsigned char side) { return (side+2)%3; }
 
   /**
-   * Bridge the origin of eLeft to the origin of eRight.
+   * Bridge the origin of eLeft to the destination of eRight.
+   * eLeft and eRight must be on the convex hull.
    * eLeft and eRight may be null.
    * @return The new edges.
    */
@@ -97,14 +98,14 @@ protected:
       tDown->incident[2] = pack(tUp, 1);
       tUp->incident[1] = pack(tDown, 2);
     } else {
-      Triangle *tRightDown;
-      unsigned char sRightDown;
-      unpack(tRight->incident[(sRight+2)%3], tRightDown, sRightDown);
-      tRight->incident[(sRight+2)%3] = pack(tUp, 1);
-      tUp->incident[1] = pack(tRight, (sRight+2)%3);
-      tRightDown->incident[sRightDown] = pack(tDown, 2);
-      tDown->incident[2] = pack(tRightDown, sRightDown);
-      tDown->vertices[0] = tUp->vertices[1] = tRight->vertices[sRight];
+      Triangle *tRightUp;
+      unsigned char sRightUp;
+      unpack(tRight->incident[(sRight+1)%3], tRightUp, sRightUp);
+      tRight->incident[(sRight+1)%3] = pack(tDown, 2);
+      tDown->incident[2] = pack(tRight, (sRight+1)%3);
+      tRightUp->incident[sRightUp] = pack(tUp, 1);
+      tUp->incident[1] = pack(tRightUp, sRightUp);
+      tDown->vertices[0] = tUp->vertices[1] = tRight->vertices[(sRight+1)%3];
     }
     return std::make_pair(pack(tDown, 0), pack(tUp, 0));
   }
@@ -170,26 +171,21 @@ protected:
                            EdgeRef *triOnHull)
   {
     assert(nV >= 2);
-    // Case 1. Two vertices.
-    if(nV == 2) {
-      auto ep = bridge(0, 0);
-      Triangle *tDown, *tUp;
-      unsigned char sDown, sUp;
-      unpack(ep.first, tDown, sDown);
-      unpack(ep.second, tUp, sUp);
-      tDown->vertices[0] = tUp->vertices[1] = &v[1];
-      tDown->vertices[1] = tUp->vertices[0] = &v[0];
-      triOnHull[0] = ep.first;
-      triOnHull[1] = ep.first;
-    // Case 2. Three vertices.
-    } else if(nV == 3) {
+    if(nV <= 3) {
+      // Case 1. Two vertices.
+      auto ep01 = bridge(0, 0);
       Triangle *tDown, *tUp, *tDown_, *tUp_;
       unsigned char sDown, sUp, sDown_, sUp_;
-      auto ep01 = bridge(0, 0);
       unpack(ep01.first, tDown, sDown);
       unpack(ep01.second, tUp, sUp);
       tDown->vertices[0] = tUp->vertices[1] = &v[1];
       tDown->vertices[1] = tUp->vertices[0] = &v[0];
+      if(nV == 2) {
+        triOnHull[0] = ep01.first;
+        triOnHull[1] = ep01.first;
+        return;
+      }
+      // Case 2. Three vertices.
       auto ep12 = bridge(ep01.first, 0);
       unpack(ep12.first, tDown_, sDown_);
       unpack(ep12.second, tUp_, sUp_);
@@ -207,33 +203,98 @@ protected:
         triOnHull[0] = ep01.first;
         triOnHull[1] = ep12.first;
       }
-    // Case 3. Four or more vertices
-    } else {
-      // divide-and-conquer
-      int nL = nV/2;
-      int nR = nV - nL;
-      EdgeRef hull[2][4];
-      Guibas_Stolfi_recur(v, nL, hull[0]);
-      Guibas_Stolfi_recur(v + nL, nR, hull[1]);
-      // compute the new the segment belonging to the convex hull at the bottom
-      while(1) {
-        Triangle *tLeft, *tRight;
-        unsigned char sLeft, sRight;
-        unpack(hull[0][1], tLeft, sLeft);
-        unpack(hull[1][0], tRight, sRight);
-        if(ccw(*tLeft->vertices[sLeft], *tLeft->vertices[(sLeft+1)%3], *tRight->vertices[(sRight+1)%3]) > epsilon) {
-          unpack(tLeft->incident[(sLeft+1)%3], tLeft, sLeft);
-          sLeft = (sLeft+1) % 3;
-        } else if(ccw(*tRight->vertices[sRight], *tRight->vertices[(sRight+1)%3], *tLeft->vertices[sLeft]) > epsilon) {
-          unpack(tRight->incident[(sRight+2)%3], tRight, sRight);
-          sRight = (sRight+2) % 3;
-        } else {
-          // break because already arrived at the bottom
-          break;
-        }
-      } // end while(1)
-      // complete and update the new convex hull
+      return;
     }
+    // Case 3. Four or more vertices
+    // divide-and-conquer
+    int nL = nV/2;
+    int nR = nV - nL;
+    EdgeRef hull[2][4];
+    Guibas_Stolfi_recur(v, nL, hull[0]);
+    Guibas_Stolfi_recur(v + nL, nR, hull[1]);
+    Triangle *tLeft, *tRight, *tBase, *tlcand, *trcand, *tTemp;
+    unsigned char sLeft, sRight, sBase, slcand, srcand, sTemp;
+    // compute the new the segment belonging to the convex hull at the bottom
+    unpack(hull[0][1], tLeft, sLeft);
+    unpack(hull[1][0], tRight, sRight);
+    while(1) {
+      if(ccw(*tLeft->vertices[sLeft], *tLeft->vertices[(sLeft+1)%3], *tRight->vertices[(sRight+1)%3]) > epsilon) {
+        unpack(tLeft->incident[(sLeft+1)%3], tLeft, sLeft);
+        sLeft = (sLeft+1) % 3;
+      } else if(ccw(*tRight->vertices[sRight], *tRight->vertices[(sRight+1)%3], *tLeft->vertices[sLeft]) > epsilon) {
+        unpack(tRight->incident[(sRight+2)%3], tRight, sRight);
+        sRight = (sRight+2) % 3;
+      } else {
+        // break because already arrived at the bottom
+        break;
+      }
+    } // end while finding the convex hull
+    // complete and update the new convex hull
+    auto botEdges = bridge(pack(tLeft, sLeft), pack(tRight, sRight));
+    unpack(hull[0][0], tTemp, sTemp);
+    if(tLeft->vertices[sLeft] == tTemp->vertices[(sTemp+1)%3])
+      hull[0][0] = botEdges.first;
+    triOnHull[0] = hull[0][0];
+    unpack(hull[1][1], tTemp, sTemp);
+    if(tRight->vertices[(sRight+1)%3] == tTemp->vertices[sTemp])
+      hull[1][1] = botEdges.first;
+    triOnHull[1] = hull[1][1];
+    // perform the merge procedure
+    unpack(botEdges.second, tBase, sBase);
+    while(1) {
+      // find the left candidate
+      unpack(tBase->incident[2], tlcand, slcand);
+      slcand = (slcand+2) % 3;
+      assert(tBase->vertices[0] == tlcand->vertices[(slcand+1)%3]);
+      if(ccw(*tBase->vertices[0], *tBase->vertices[1], *tlcand->vertices[slcand]) > epsilon) {
+        do {
+          // extract the next left candidate
+          unpack(tlcand->incident[slcand], tTemp, sTemp);
+          sTemp = (sTemp + 2) % 3;
+          if(inCircle(*tBase->vertices[0],
+                      *tBase->vertices[1],
+                      *tlcand->vertices[slcand],
+                      *tTemp->vertices[sTemp]) < epsilon)
+            break;
+          flip(pack(tlcand, slcand));   // delete the now lcand
+          tlcand = tTemp;  slcand = 1;  // update the lcand
+        } while(1);
+      }
+      // find the right candidate
+      unpack(tBase->incident[1], trcand, srcand);
+      srcand = (srcand+1) % 3;
+      assert(tBase->vertices[1] == trcand->vertices[srcand]);
+      if(ccw(*tBase->vertices[0], *tBase->vertices[1], *trcand->vertices[(srcand+1)%3]) > epsilon) {
+        do {
+          // extract the next right candidate
+          unpack(trcand->incident[srcand], tTemp, sTemp);
+          sTemp = (sTemp + 1) % 3;
+          if(inCircle(*tBase->vertices[0],
+                      *tBase->vertices[1],
+                      *trcand->vertices[(srcand+1)%3],
+                      *tTemp->vertices[(sTemp+1)%3]) > epsilon)
+            break;
+          flip(pack(trcand, srcand)); // delete the now rcand
+          srcand = 2; /* trcand is automatically updated by flip() ! */
+        } while(1);
+      }
+      // Check if we have arrived at the top segment on the convex hull
+      bool lvalid = ccw(*tBase->vertices[0], *tBase->vertices[1], *tlcand->vertices[slcand]) > epsilon;
+      bool rvalid = ccw(*tBase->vertices[0], *tBase->vertices[1], *trcand->vertices[(srcand+1)%3]) > epsilon;
+      if(lvalid == false && rvalid == false)
+        break; // exit the merge procedure
+      // progressively establish a new L-R edge
+      if(lvalid == false || (rvalid && inCircle(*tlcand->vertices[slcand],
+                                                *tBase->vertices[0],
+                                                *tBase->vertices[1],
+                                                *trcand->vertices[(srcand+1)%3]) > epsilon)) {
+        flip(pack(tBase, 1)); // connect to the right
+        tBase = trcand;
+      } else {
+        flip(pack(tBase, 2)); // connect to the left
+        /* tBase is automatically updated */
+      }
+    } // end while not reaching the top segment
   }
 
   // The interface
