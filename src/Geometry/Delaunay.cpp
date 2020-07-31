@@ -1,3 +1,5 @@
+#include <vector>
+#include <algorithm>
 #include <utility>
 #include "Geometry/Delaunay.h"
 
@@ -41,10 +43,13 @@ protected:
 
   struct Triangle {
     const rVec * vertices[3]; // The pointers to the 3 vertices
-    EdgeRef      incident[3]; // The pointers to the incident faces and edges.
-    // [0] points to the triangle and its edge incident to the edge v[0]-v[1], etc.
-    // unsigned long userData;
+    EdgeRef      incident[3]; // The pointers to the dual edges.
+                              // [0] points to the edge dual to the edge v[0]-v[1] of this triangle and etc.
+     unsigned long userData;
   };
+
+  std::vector<Triangle *> triList; // storing all the allocated triangles
+  int numInternalTris;             // the number of triangles not on the convex hull
 
   static EdgeRef pack(Triangle *pT, unsigned char side)
   {
@@ -65,7 +70,7 @@ protected:
    * eLeft and eRight may be null.
    * @return The new edges.
    */
-  static std::pair<EdgeRef, EdgeRef> bridge(EdgeRef eLeft, EdgeRef eRight)
+  std::pair<EdgeRef, EdgeRef> bridge(EdgeRef eLeft, EdgeRef eRight)
   {
     Triangle *tLeft, *tRight;
     unsigned char sLeft, sRight;
@@ -75,8 +80,10 @@ protected:
     assert(eRight == 0 || tRight->vertices[oppoVertex(sRight)] == nullptr);
     Triangle *tDown = new Triangle;
     tDown->vertices[2] = nullptr;
+    triList.push_back(tDown);
     Triangle *tUp = new Triangle;
     tUp->vertices[2] = nullptr;
+    triList.push_back(tUp);
     tDown->incident[0] = pack(tUp, 0);
     tUp->incident[0] = pack(tDown, 0);
     // bridge the left part
@@ -113,7 +120,7 @@ protected:
   /**
    * Flip the edge e as the diagonal of a quadrilateral.
    */
-  static std::pair<EdgeRef, EdgeRef> flip(EdgeRef e)
+  std::pair<EdgeRef, EdgeRef> flip(EdgeRef e)
   {
     assert(e != 0);
     Triangle *eLeft, *eRight, *eLeftUp, *eLeftDown, *eRightUp, *eRightDown;
@@ -153,10 +160,39 @@ protected:
   // computational routines
 protected:
   /**
-   *
-   * @return One of the triangle in the triangulation.
+   * Main body of the Guibas-Stolfi triangulation.
    */
-  Triangle *Guibas_Stolfi_DT(const rVec *pVertices, std::size_t numVertices);
+  void Guibas_Stolfi_DT(const rVec *v, int nV)
+  {
+    // Step 1. Construct an array of pointers and sort the vertices in x-increasing order.
+    std::vector<const rVec *> va(nV);
+    for(int i = 0; i < nV; ++i)
+      va[i] = v + i;
+    std::sort(va.begin(), va.end(),
+              [](const rVec *plhs, const rVec *prhs) {
+                const auto &lhs = *plhs;
+                const auto &rhs = *prhs;
+                return (lhs[0] < rhs[0]) || (lhs[0] == rhs[0] && lhs[1] < rhs[1]);
+              });
+    // Step 2. Invoke the divide-and-conquer algorithm.
+    EdgeRef hull[4];
+    Guibas_Stolfi_recur(va.data(), nV, hull);
+    // Step 3. Separate the internal triangles and the triangles on the convex hull.
+    auto isOnConvexHull = [](Triangle *pTri) {
+      return std::any_of(&(pTri->vertices[0]), &(pTri->vertices[3]), [](const rVec *pv) { return pv == nullptr; });
+    };
+    auto i = triList.begin();
+    auto j = triList.end();
+    while(i < j) {
+      if(isOnConvexHull(*i)) {
+        --j;
+        std::iter_swap(i, j);
+      } else {
+        ++i;
+      }
+    }
+    numInternalTris = j - triList.begin();
+  }
 
   /**
    * The recursive procedure of Guibas-Stolfi triangulation.
@@ -166,9 +202,7 @@ protected:
    *                  [2] for the ccw edge arrived at the bottommost vertex,
    *                  [3] for the cw edge from the topmost vertex.
    */
-  void Guibas_Stolfi_recur(const rVec *v,
-                           std::size_t nV,
-                           EdgeRef *triOnHull)
+  void Guibas_Stolfi_recur(const rVec **v, int nV, EdgeRef *triOnHull)
   {
     assert(nV >= 2);
     if(nV <= 3) {
@@ -178,8 +212,8 @@ protected:
       unsigned char sDown, sUp, sDown_, sUp_;
       unpack(ep01.first, tDown, sDown);
       unpack(ep01.second, tUp, sUp);
-      tDown->vertices[0] = tUp->vertices[1] = &v[1];
-      tDown->vertices[1] = tUp->vertices[0] = &v[0];
+      tDown->vertices[0] = tUp->vertices[1] = v[1];
+      tDown->vertices[1] = tUp->vertices[0] = v[0];
       if(nV == 2) {
         triOnHull[0] = ep01.first;
         triOnHull[1] = ep01.first;
@@ -189,12 +223,12 @@ protected:
       auto ep12 = bridge(ep01.first, 0);
       unpack(ep12.first, tDown_, sDown_);
       unpack(ep12.second, tUp_, sUp_);
-      tDown_->vertices[0] = tUp_->vertices[1] = &v[2];
-      if(ccw(v[0], v[1], v[2]) > epsilon) {
+      tDown_->vertices[0] = tUp_->vertices[1] = v[2];
+      if(ccw(*v[0], *v[1], *v[2]) > epsilon) {
         /*auto ep20 = */flip(pack(tUp_, 2));
         triOnHull[0] = ep01.first;
         triOnHull[1] = ep12.first;
-      } else if(ccw(v[0], v[1], v[2]) < -epsilon) {
+      } else if(ccw(*v[0], *v[1], *v[2]) < -epsilon) {
         auto ep20 = flip(pack(tDown_, 1));
         triOnHull[0] = ep20.second;
         triOnHull[1] = ep20.second;
@@ -251,10 +285,11 @@ protected:
           // extract the next left candidate
           unpack(tlcand->incident[slcand], tTemp, sTemp);
           sTemp = (sTemp + 2) % 3;
-          if(inCircle(*tBase->vertices[0],
-                      *tBase->vertices[1],
-                      *tlcand->vertices[slcand],
-                      *tTemp->vertices[sTemp]) < epsilon)
+          if(tTemp->vertices[sTemp] == nullptr  // lcand is on the convex hull
+              || inCircle(*tBase->vertices[0],
+                          *tBase->vertices[1],
+                          *tlcand->vertices[slcand],
+                          *tTemp->vertices[sTemp]) < epsilon)
             break;
           flip(pack(tlcand, slcand));   // delete the now lcand
           tlcand = tTemp;  slcand = 1;  // update the lcand
@@ -269,10 +304,11 @@ protected:
           // extract the next right candidate
           unpack(trcand->incident[srcand], tTemp, sTemp);
           sTemp = (sTemp + 1) % 3;
-          if(inCircle(*tBase->vertices[0],
-                      *tBase->vertices[1],
-                      *trcand->vertices[(srcand+1)%3],
-                      *tTemp->vertices[(sTemp+1)%3]) > epsilon)
+          if(tTemp->vertices[(sTemp+1)%3] == nullptr // rcand is on the convex hhull
+              ||  inCircle(*tBase->vertices[0],
+                           *tBase->vertices[1],
+                           *trcand->vertices[(srcand+1)%3],
+                           *tTemp->vertices[(sTemp+1)%3]) < epsilon)
             break;
           flip(pack(trcand, srcand)); // delete the now rcand
           srcand = 2; /* trcand is automatically updated by flip() ! */
@@ -298,7 +334,7 @@ protected:
   }
 
   // The interface
-public:
+protected:
   /**
    * The default constructor accepting the tolerance.
    * @param Epsilon
@@ -307,5 +343,45 @@ public:
   {
   }
 
+  /**
+   * After the destructor is called, the triangle data is freed and no longer accessible.
+   */
+  ~DelaunayImpl()
+  {
+     for(auto pTri : triList)
+       delete pTri;
+  }
+
   Real epsilon;
+
+  friend class Delaunay;
 };
+
+//================================================================================
+
+Delaunay::Delaunay(Real aEps)
+{
+  pImpl = new DelaunayImpl(aEps);
+}
+
+Delaunay::~Delaunay()
+{
+  delete pImpl;
+  pImpl = nullptr;
+}
+
+void Delaunay::triangulate(const rVec *verts, int nV, int *triOutput, int &numTri)
+{
+  if(triOutput == nullptr) {
+    pImpl->Guibas_Stolfi_DT(verts, nV);
+    numTri = pImpl->numInternalTris;
+  } else {
+    int k = 0;
+    for(int i = 0; i < pImpl->numInternalTris; ++i) {
+      const auto &tri = *(pImpl->triList[i]);
+      triOutput[k++] = tri.vertices[0] - verts;
+      triOutput[k++] = tri.vertices[1] - verts;
+      triOutput[k++] = tri.vertices[2] - verts;
+    }
+  }
+}
